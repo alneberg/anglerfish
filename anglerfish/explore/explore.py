@@ -128,15 +128,15 @@ def run_explore(
                     index_region["sequence_length"] = index_region["sequence"].apply(
                         len
                     )
-                    with open("index_region.fa", mode="w") as ofh:
-                        for seq_id, row in index_region.iterrows():
+                    # Only cluster index_regions of correct length
+                    len_filter = index_region["sequence_length"] == median_insert_length
+                    region_sequence_output_file = os.path.join(
+                        outdir, f"{adaptor_end_name}_{adaptor_end}.fa"
+                    )
+                    with open(region_sequence_output_file, mode="w") as ofh:
+                        for seq_id, row in index_region[len_filter].iterrows():
                             print(f">{seq_id}", file=ofh)
                             print(f"{row.sequence}", file=ofh)
-
-                    index_region[
-                        index_region["sequence_length"] == median_insert_length
-                    ]
-
             else:
                 m_re_cs = r"^cs:Z::([1-9][0-9]*)$"
                 df_good_hits = df[df.cg.str.match(m_re_cs)]
