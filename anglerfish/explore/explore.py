@@ -128,7 +128,7 @@ def run_explore(
                     index_region["sequence_length"] = index_region["sequence"].apply(
                         len
                     )
-                    with open("index_region.fa") as ofh:
+                    with open("index_region.fa", mode="w") as ofh:
                         for seq_id, row in index_region.iterrows():
                             print(f">{seq_id}", file=ofh)
                             print(f"{row.sequence}", file=ofh)
