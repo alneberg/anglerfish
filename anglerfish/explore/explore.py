@@ -131,7 +131,7 @@ def run_explore(
                     # Only cluster index_regions of correct length
                     len_filter = index_region["sequence_length"] == median_insert_length
                     region_sequence_output_file = os.path.join(
-                        outdir, f"{adaptor_end_name}_{adaptor_end}.fa"
+                        outdir, f"{adaptor.name}_{adaptor_end_name}.fa"
                     )
                     with open(region_sequence_output_file, mode="w") as ofh:
                         for seq_id, row in index_region[len_filter].iterrows():
