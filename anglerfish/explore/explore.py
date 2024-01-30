@@ -120,6 +120,14 @@ def run_explore(
 
                 median_insert_length = df_good_hits["insert_len"].median()
                 insert_lengths = df_good_hits["insert_len"].value_counts()
+
+                if len(df_good_hits) >= min_hits_per_adaptor:
+                    index_region = df_good_hits.cs.str.extract(mim_re_cs).rename(
+                        {0: "sequence"}
+                    )
+                    index_region["sequence_length"] = index_region["sequence"].apply(
+                        len
+                    )
             else:
                 m_re_cs = r"^cs:Z::([1-9][0-9]*)$"
                 df_good_hits = df[df.cg.str.match(m_re_cs)]
