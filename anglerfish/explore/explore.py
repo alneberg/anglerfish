@@ -12,6 +12,11 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("explore")
 
 
+def reverse_complement(seq):
+    complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
+    return str([complement[base] for base in reversed(seq)])
+
+
 def run_explore(
     fastq,
     outdir,
@@ -128,6 +133,10 @@ def run_explore(
                     index_region["sequence_length"] = index_region["sequence"].apply(
                         len
                     )
+                    # TODO, I think we need to consider the orientation as well
+                    rev_orientation = df_good_hits["strand"] == "-"
+                    index_region[rev_orientation]["sequence"].apply(reverse_complement)
+
                     # Only cluster index_regions of correct length
                     len_filter = index_region["sequence_length"] == median_insert_length
                     region_sequence_output_file = os.path.join(
