@@ -14,7 +14,7 @@ log = logging.getLogger("explore")
 
 def reverse_complement(seq):
     complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
-    return str([complement[base] for base in reversed(seq)])
+    return "".join([complement[base.upper()].lower() for base in reversed(seq)])
 
 
 def run_explore(
@@ -126,6 +126,10 @@ def run_explore(
                 median_insert_length = df_good_hits["insert_len"].median()
                 insert_lengths = df_good_hits["insert_len"].value_counts()
 
+                #########
+                # Clustering
+                #########
+
                 if len(df_good_hits) >= min_hits_per_adaptor:
                     index_region = df_good_hits.cs.str.extract(mim_re_cs).rename(
                         {0: "sequence"}, axis=1
@@ -133,9 +137,14 @@ def run_explore(
                     index_region["sequence_length"] = index_region["sequence"].apply(
                         len
                     )
-                    # TODO, I think we need to consider the orientation as well
+
                     rev_orientation = df_good_hits["strand"] == "-"
-                    index_region[rev_orientation]["sequence"].apply(reverse_complement)
+                    index_region["sequence_adjusted"] = index_region["sequence"]
+                    index_region.loc[
+                        rev_orientation, "sequence_adjusted"
+                    ] = index_region[rev_orientation]["sequence"].apply(
+                        reverse_complement
+                    )
 
                     # Only cluster index_regions of correct length
                     len_filter = index_region["sequence_length"] == median_insert_length
@@ -145,7 +154,7 @@ def run_explore(
                     with open(region_sequence_output_file, mode="w") as ofh:
                         for seq_id, row in index_region[len_filter].iterrows():
                             print(f">{seq_id}", file=ofh)
-                            print(f"{row.sequence}", file=ofh)
+                            print(f"{row.sequence_adjusted}", file=ofh)
             else:
                 m_re_cs = r"^cs:Z::([1-9][0-9]*)$"
                 df_good_hits = df[df.cg.str.match(m_re_cs)]
