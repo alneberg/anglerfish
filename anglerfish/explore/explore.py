@@ -2,7 +2,10 @@ import logging
 import os
 import uuid
 
+import Levenshtein as lev
 import pandas as pd
+from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.spatial.distance import squareform
 
 from anglerfish.demux.adaptor import load_adaptors
 from anglerfish.demux.demux import parse_paf_lines, run_minimap2
@@ -148,13 +151,34 @@ def run_explore(
 
                     # Only cluster index_regions of correct length
                     len_filter = index_region["sequence_length"] == median_insert_length
-                    region_sequence_output_file = os.path.join(
-                        outdir, f"{adaptor.name}_{adaptor_end_name}.fa"
+
+                    # Select unique index regions with counts
+                    val_counts = index_region[len_filter][
+                        "sequence_adjusted"
+                    ].value_counts()
+
+                    # Exclude index regions with less than three counts
+                    val_counts_filt = val_counts[val_counts > 0]
+                    distances = [
+                        [lev.distance(seq1, seq2) for seq2 in val_counts_filt.index]
+                        for seq1 in val_counts_filt.index
+                    ]
+                    condensed_distances = squareform(distances)
+                    clustering = linkage(condensed_distances, method="average")
+                    distance_threshold = 2
+                    clusters = fcluster(
+                        clustering, t=distance_threshold, criterion="distance"
                     )
-                    with open(region_sequence_output_file, mode="w") as ofh:
-                        for seq_id, row in index_region[len_filter].iterrows():
-                            print(f">{seq_id}", file=ofh)
-                            print(f"{row.sequence_adjusted}", file=ofh)
+
+                    cluster_df = pd.DataFrame(
+                        {
+                            "sequence": val_counts_filt.index,
+                            "count": val_counts_filt.values,
+                            "cluster": clusters,
+                        }
+                    )
+                    # Something to keep ruff happy
+                    print(len(cluster_df))
             else:
                 m_re_cs = r"^cs:Z::([1-9][0-9]*)$"
                 df_good_hits = df[df.cg.str.match(m_re_cs)]
