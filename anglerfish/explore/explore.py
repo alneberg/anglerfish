@@ -164,6 +164,62 @@ def run_explore(
                 f"{adaptor.name}:{adaptor_end_name} had {len(df_good_hits)} good hits."
             )
 
+        mim_re_cs = (
+            r"^cs:Z::[1-9][0-9]*\+([a,c,t,g]*):[1-9][0-9]*$"  # Match Insert Match = mim
+        )
+        df["index_seq"] = df.cs.str.extract(mim_re_cs).rename({0: "index_seq"}, axis=1)
+        # Filter NaN values form index_seq
+        df = df.dropna(subset=["index_seq"])
+
+        groups_with_one_alignment = 0
+        groups_with_exactly_two_alignments = 0
+        groups_with_more_than_two_alignments = 0
+        index_seqs = {}
+        for group, df_group in df.groupby("read_name"):
+            if len(df_group) == 1:
+                groups_with_one_alignment += 1
+            elif len(df_group) > 2:
+                groups_with_more_than_two_alignments += 1
+            else:
+                # Check if index sequence exists for both i5 and i7 adapter_name
+                log.debug(f"Read {group} has two alignments")
+                if (
+                    df_group.adapter_name.str.contains("i5").any()
+                    and df_group.adapter_name.str.contains("i7").any()
+                ):
+                    for index_seq, row in df_group.iterrows():
+                        if "i5" in row.adapter_name:
+                            i5_index_seq = row.index_seq
+                        if "i7" in row.adapter_name:
+                            i7_index_seq = row.index_seq
+                    index_seqs[group] = {
+                        "i7": i7_index_seq,
+                        "i5": i5_index_seq,
+                        "i7_i5": f"{i7_index_seq}-{i5_index_seq}",
+                    }
+                    log.debug(f"i7: {i7_index_seq}, i5: {i5_index_seq}")
+                    groups_with_exactly_two_alignments += 1
+
+        log.info(
+            f"Found {groups_with_one_alignment} groups with one alignment and {groups_with_more_than_two_alignments} groups with more than two alignments"
+        )
+        log.info(
+            f"Found {groups_with_exactly_two_alignments} groups with exactly two alignments"
+        )
+        # Extract the match lengths
+        match_col_df = df_mim.cg.str.extract(mim_re_cg).rename(
+            {0: "match_1_len", 1: "insert_len", 2: "match_2_len"}, axis=1
+        )
+        match_col_df = match_col_df.astype(
+            {
+                "match_1_len": "int32",
+                "insert_len": "int32",
+                "match_2_len": "int32",
+            }
+        )
+
+        index_seqs_df = pd.DataFrame.from_dict(index_seqs, orient="index")
+
         if min(nr_good_hits.values()) >= min_hits_per_adaptor:
             log.info(f"Adaptor {adaptor.name} is included in the analysis")
             adaptors_included.append(adaptor)
